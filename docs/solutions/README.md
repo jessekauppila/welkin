@@ -18,5 +18,6 @@ Workflow lessons (see CLAUDE.md "Branches"):
 |---|---|
 | `2026-06-08-stacked-branch-missing-merged-dependency.md` | A branch cut before its dependency landed does not have it; green tests can hide the broken import. (sunset) |
 | `2026-06-09-git-worktrees-for-js-and-python-repos.md` | Making worktrees cheap enough to use. Welkin differs on Python: each worktree gets its own `.venv`, because a shared editable install runs the `welkin-*` scripts from one checkout's `src/`. (sunset) |
+| `2026-09-18-a-stacked-pr-merges-into-its-base-not-main.md` | #9 and #10 merged into their parent branches and read MERGED; #11 was needed to land them. Do not stack. (welkin) |
 | `2026-06-13-integrate-frequently-dont-let-branches-sprawl.md` | Land small increments the same day; long-lived branches orphan fixes. Necessary, not sufficient. (sunset) |
 | `2026-09-07-merged-is-a-claim-about-a-branch.md` | MERGED describes a branch. Only `git merge-base --is-ancestor <sha> origin/main` says it reached main. (sunset) |
