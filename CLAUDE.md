@@ -27,6 +27,10 @@ Stdlib first: no web framework, SQLite in `data/welkin.sqlite`, paths relative t
 - Frames and human responses are data, not source. They live under `data/` (gitignored) or
   in the store, never committed.
 - Every scorer gets a negative control (flat sky, lens cap) before its output is trusted.
+  Runs are recorded in `docs/controls.md`; `docs/solutions/` holds the lessons they taught.
+- A machine opinion (score, reading) never shares a row with a human response. Every one
+  records its instrument and version (`scorer_version`, `prompt_version`); never pool versions.
+- A seer `status='error'` is shown as "the seer could not look", never as an empty reading.
 - The LLM may be the AI's *voice* in the game. Whether it may also be the *score* is open
   question 8 in the brief; do not decide it by accident.
 - Children's drawings: consent and release are open question 11. Until decided, exhibit

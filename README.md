@@ -53,7 +53,32 @@ frame itself. Frames go to `data/frames/`, with one row each in
 `data/welkin.sqlite`. Pass `--token` or set `WELKIN_INGEST_TOKEN` to require a
 bearer token. The camera side is `sunset-cam-firmware`'s capture profiles.
 
+**Picker** (issue #3). Scores a camera's recent frames and freezes the best:
+
+```bash
+.venv/bin/welkin-picker --camera 3 --window-min 30 --dry-run
+```
+
+**Negative control** (required before any sitting). Score a directory of images that
+should be picked *never* (lens cap, ceiling, flat sky), against one that should:
+
+```bash
+.venv/bin/welkin-control path/to/controls --clouds path/to/clouds
+```
+
+Results are recorded in `docs/controls.md`. The current picker, `texture` v0, **failed**
+its first control on the prototype's image pools; read that file before trusting it.
+
+**Seer** (issue #4). The AI's turn: reads a stored frame or an image file with
+`claude-opus-5`, via the SDK's own credentials (`ANTHROPIC_API_KEY` or `ant auth login`):
+
+```bash
+.venv/bin/welkin-seer --image path/to/frame.jpg
+.venv/bin/welkin-seer --frame-id 12
+.venv/bin/welkin-seer --control path/to/lens-cap-and-ceiling-frames
+```
+
 ## Status
 
-- Frame ingest: built (#1).
-- Response store, picker, seer, station, rubric: open, milestone "M1: Freeze and draw".
+- Frame ingest (#1), picker v0 (#3), seer (#4): built. Picker not validated on real frames.
+- Response store (#2), station (#5), rubric (#6), lessons (#7): open, milestone "M1: Freeze and draw".
