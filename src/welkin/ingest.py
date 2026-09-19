@@ -42,6 +42,8 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from welkin import db
+
 log = logging.getLogger("welkin.ingest")
 
 MAX_FRAME_BYTES = 20 * 1024 * 1024
@@ -49,20 +51,6 @@ CAMERA_ID = r"[A-Za-z0-9_-]{1,64}"
 _POST_FRAME = re.compile(rf"^/frames/({CAMERA_ID})$")
 _GET_LATEST = re.compile(rf"^/frames/({CAMERA_ID})/latest\.jpg$")
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS frames (
-    id          INTEGER PRIMARY KEY,
-    camera_id   TEXT NOT NULL,
-    captured_at TEXT NOT NULL,   -- UTC, 'YYYY-MM-DDTHH:MM:SSZ', from the device
-    received_at TEXT NOT NULL,   -- UTC, from this server
-    profile     TEXT,
-    path        TEXT NOT NULL,   -- relative to the data directory
-    bytes       INTEGER NOT NULL,
-    sha256      TEXT NOT NULL,
-    UNIQUE (camera_id, captured_at)
-);
-CREATE INDEX IF NOT EXISTS frames_by_time ON frames (camera_id, captured_at);
-"""
 
 
 def _iso(dt: datetime) -> str:
@@ -87,13 +75,10 @@ class FrameStore:
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.db_path = self.data_dir / "welkin.sqlite"
-        with self._connect() as con:
-            con.executescript(SCHEMA)
+        db.connect(self.data_dir).close()  # create the file and apply the schema
 
     def _connect(self) -> sqlite3.Connection:
-        con = sqlite3.connect(self.db_path, timeout=10)
-        con.row_factory = sqlite3.Row
-        return con
+        return db.connect(self.data_dir)
 
     def add(self, camera_id: str, captured_at: datetime, profile: str | None, jpeg: bytes) -> tuple[str, dict]:
         """Store a frame. Returns ("created" | "duplicate" | "conflict", row)."""
@@ -119,7 +104,7 @@ class FrameStore:
             row = {
                 "camera_id": camera_id,
                 "captured_at": at,
-                "received_at": _iso(datetime.now(timezone.utc)),
+                "received_at": db.utcnow_iso(),
                 "profile": profile,
                 "path": rel.as_posix(),
                 "bytes": len(jpeg),
