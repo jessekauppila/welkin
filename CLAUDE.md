@@ -60,12 +60,11 @@ Still true in every worktree:
   `docs/solutions/2026-09-18-a-stacked-pr-merges-into-its-base-not-main.md`.
 - **CI runs `pytest` on 3.11 and 3.13** for every PR (`.github/workflows/ci.yml`; checks
   `test (3.11)` and `test (3.13)`). Do not merge on red.
-- **Branch protection on `main` is pending.** Welkin is a private repo on a free plan, and
-  GitHub refuses protection there. Until it is on, nothing forces a PR to be up to date with
-  `main` before it merges, so a green PR that fell behind has not been tested against what
-  it merges into: merge `origin/main` into it and let CI run again before merging. When the
-  repo goes public or Pro, require `test (3.11)` and `test (3.13)` with "up to date" on, no
-  force pushes, no deletions. Protection settings are Jesse's to change.
+- **GitHub builds the merge result for you.** Branch protection on `main` requires
+  `test (3.11)` and `test (3.13)` and requires a PR to be up to date with `main` first, so
+  a PR that falls behind shows "Update branch" and re-runs CI on the combined code. No force
+  pushes or deletions on `main`. Admins can still bypass; do not. Protection settings are
+  Jesse's to change. (Turned on 2026-09-18, when the repo went public.)
 - **Remove the worktree when the PR merges.** `git worktree list` should read like the list
   of open PRs. Delete the merged branch too (GitHub does it on merge).
 
