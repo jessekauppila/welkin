@@ -33,6 +33,27 @@ One Pi Zero 2 W camera pointed at the venue's sky, one frame every 5 to 10 minut
 to an ingest in this repo. One touch screen: freeze a frame, draw on it, name it, then see
 what the AI saw. A response store. A pre-registered bar for "did they enjoy it."
 
+## Run
+
+```bash
+python3.11 -m venv .venv
+.venv/bin/pip install -e ".[dev]"
+.venv/bin/pytest
+```
+
+**Frame ingest** (issue #1). Run it on a laptop on the camera's LAN:
+
+```bash
+.venv/bin/welkin-ingest --port 8000
+```
+
+It prints the URL to put in the camera's `welkin` sink. Open `/health` to see
+the last frame per camera, and `/frames/<camera_id>/latest.jpg` to see the
+frame itself. Frames go to `data/frames/`, with one row each in
+`data/welkin.sqlite`. Pass `--token` or set `WELKIN_INGEST_TOKEN` to require a
+bearer token. The camera side is `sunset-cam-firmware`'s capture profiles.
+
 ## Status
 
-Created 2026-09-18. Nothing built yet.
+- Frame ingest: built (#1).
+- Response store, picker, seer, station, rubric: open, milestone "M1: Freeze and draw".

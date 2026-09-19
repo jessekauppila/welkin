@@ -16,6 +16,12 @@ Shared sky-watching system; see `README.md`. Created 2026-09-18.
 Reuse from them by copying with a header that records origin path, commit SHA and date, the
 way `figment/labelkit/` does. Never edit them from here.
 
+## Dev
+
+`python3.11 -m venv .venv && .venv/bin/pip install -e ".[dev]"`, then `.venv/bin/pytest`.
+Stdlib first: no web framework, SQLite in `data/welkin.sqlite`, paths relative to `data/`
+(never URLs). Work on a branch and open a PR; Jesse merges.
+
 ## Rules
 
 - Frames and human responses are data, not source. They live under `data/` (gitignored) or
