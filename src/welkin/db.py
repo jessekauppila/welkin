@@ -55,6 +55,42 @@ CREATE TABLE IF NOT EXISTS freezes (
     candidates     INTEGER NOT NULL   -- how many frames were in the running
 );
 
+-- One visit to the station: from the first frame offered to the person walking
+-- away. Provenance lives here, assigned by the server, never sent by the client.
+CREATE TABLE IF NOT EXISTS sittings (
+    id             INTEGER PRIMARY KEY,
+    camera_id      TEXT NOT NULL,
+    started_at     TEXT NOT NULL,
+    ended_at       TEXT,
+    origin         TEXT NOT NULL,      -- e.g. 'exhibit_v0'
+    rubric_version TEXT NOT NULL,      -- e.g. 'v0'
+    rater          TEXT                -- who, when known; NULL for an anonymous visitor
+);
+
+-- What a person said about a frame: strokes and words, committed together.
+-- Never holds a score, a reading, or anything the machine said (that is in
+-- frame_scores / readings, joined on frame_id).
+CREATE TABLE IF NOT EXISTS responses (
+    id           INTEGER PRIMARY KEY,
+    sitting_id   INTEGER NOT NULL REFERENCES sittings(id),
+    frame_id     INTEGER NOT NULL REFERENCES frames(id),
+    freeze_id    INTEGER REFERENCES freezes(id),
+    text         TEXT NOT NULL,        -- "what do you see?", may be empty
+    strokes      TEXT NOT NULL,        -- JSON: [[[x,y],[x,y],...], ...], coords in 0..1
+    committed_at TEXT NOT NULL,
+    revealed_at  TEXT                  -- when the seer's reading was shown; NULL if never
+);
+
+-- The station's timeline, for the pre-registered bar (docs/m1-bar.md):
+-- 'offered', 'committed', 'revealed', 'again', 'skipped'.
+CREATE TABLE IF NOT EXISTS station_events (
+    id         INTEGER PRIMARY KEY,
+    sitting_id INTEGER NOT NULL REFERENCES sittings(id),
+    kind       TEXT NOT NULL,
+    frame_id   INTEGER REFERENCES frames(id),
+    at         TEXT NOT NULL
+);
+
 -- The seer's reading of a frame. status is 'ok' or 'error'; an error row has
 -- no readings and must never be shown as "the seer saw nothing".
 CREATE TABLE IF NOT EXISTS readings (

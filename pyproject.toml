@@ -18,6 +18,8 @@ welkin-ingest = "welkin.ingest:main"
 welkin-picker = "welkin.picker:main"
 welkin-control = "welkin.picker:control_main"
 welkin-seer = "welkin.seer:main"
+welkin-report = "welkin.store:main"
+welkin-station = "welkin.station:main"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -25,6 +27,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+welkin = ["station.html"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

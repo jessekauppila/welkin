@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Welkin</title>
+<style>
+  :root {
+    --bg: #0b1020; --panel: #141a2e; --ink: #f2f4f8; --dim: #9aa3b8;
+    --accent: #ffd166; --stroke: #ff5e7e; --ok: #7ee0a3; --err: #ff9b71;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; touch-action: manipulation; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+    font: 18px/1.4 -apple-system, "Helvetica Neue", Arial, sans-serif; -webkit-user-select: none; user-select: none; }
+  body { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; }
+  header { padding: 12px 16px; display: flex; justify-content: space-between; align-items: baseline; }
+  header h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: .02em; }
+  header .meta { color: var(--dim); font-size: 14px; }
+  main { position: relative; min-height: 0; display: grid; place-items: center; padding: 0 16px; }
+  #stage { position: relative; max-width: 100%; max-height: 100%; aspect-ratio: 4 / 3; width: min(100%, calc((100vh - 200px) * 4 / 3)); }
+  #frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; border-radius: 12px; background: #000; }
+  #canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; border-radius: 12px; }
+  #stage[data-state="revealed"] #canvas { pointer-events: none; }
+  #notice { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px;
+    color: var(--dim); font-size: 22px; background: rgba(11,16,32,.85); border-radius: 12px; }
+  #notice[hidden] { display: none; }
+  footer { padding: 12px 16px 20px; display: grid; gap: 10px; }
+  .row { display: flex; gap: 10px; align-items: center; }
+  input[type=text] { flex: 1; font: inherit; font-size: 20px; padding: 14px 16px; border-radius: 12px; border: 1px solid #2a3350;
+    background: var(--panel); color: var(--ink); min-height: 56px; -webkit-user-select: text; user-select: text; }
+  button { font: inherit; font-size: 18px; font-weight: 600; min-height: 56px; padding: 0 22px; border-radius: 12px; border: 0;
+    background: var(--panel); color: var(--ink); cursor: pointer; }
+  button.primary { background: var(--accent); color: #1a1500; }
+  button:disabled { opacity: .4; cursor: default; }
+  #reveal { display: none; background: var(--panel); border-radius: 12px; padding: 14px 16px; }
+  #stage[data-state="revealed"] ~ footer #reveal, footer[data-state="revealed"] #reveal { display: block; }
+  #reveal h2 { margin: 0 0 6px; font-size: 15px; color: var(--dim); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  #reveal ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+  #reveal li .where { color: var(--dim); font-size: 15px; }
+  #reveal .bar { display: inline-block; height: 8px; border-radius: 4px; background: var(--ok); vertical-align: middle; margin-left: 8px; }
+  #reveal .err { color: var(--err); }
+  #reveal .note { color: var(--dim); font-size: 15px; margin-top: 8px; }
+  .you { color: var(--stroke); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Welkin</h1>
+  <div class="meta" id="meta">…</div>
+</header>
+<main>
+  <div id="stage" data-state="offering">
+    <img id="frame" alt="">
+    <canvas id="canvas"></canvas>
+    <div id="notice">Looking for a cloud…</div>
+  </div>
+</main>
+<footer id="footer" data-state="offering">
+  <div class="row" id="drawRow">
+    <button id="undo" title="Undo last stroke">Undo</button>
+    <input id="text" type="text" placeholder="What do you see?" autocomplete="off" enterkeyhint="done" maxlength="500">
+    <button id="commit" class="primary" disabled>That's what I see</button>
+  </div>
+  <div id="reveal">
+    <h2>The seer saw</h2>
+    <div id="seerBody"></div>
+  </div>
+  <div class="row" id="againRow" hidden>
+    <button id="again" class="primary">Another cloud</button>
+    <button id="done">Done</button>
+  </div>
+  <div class="row" id="skipRow">
+    <button id="skip">Not this one</button>
+  </div>
+</footer>
+<script>
+(() => {
+  const qs = new URLSearchParams(location.search);
+  const camera = qs.get('camera') || '3';
+  const $ = id => document.getElementById(id);
+  const stage = $('stage'), footer = $('footer'), frame = $('frame'), canvas = $('canvas'), ctx = canvas.getContext('2d');
+  const notice = $('notice'), meta = $('meta'), text = $('text'), commitBtn = $('commit'), undoBtn = $('undo');
+
+  let offer = null;        // {sitting_id, frame_id, freeze_id, image, score, captured_at}
+  let strokes = [];        // [[[x,y],...], ...] in 0..1 frame coords
+  let current = null;
+  let state = 'offering';
+
+  function setState(s) {
+    state = s; stage.dataset.state = s; footer.dataset.state = s;
+    $('drawRow').hidden = (s === 'revealed');
+    $('skipRow').hidden = (s === 'revealed');
+    $('againRow').hidden = (s !== 'revealed');
+    commitBtn.disabled = !(strokes.length || text.value.trim());
+  }
+
+  // --- canvas ---------------------------------------------------------------
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    canvas.width = Math.round(r.width * devicePixelRatio); canvas.height = Math.round(r.height * devicePixelRatio);
+    redraw();
+  }
+  function redraw() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(canvas.width, canvas.height);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--stroke');
+    ctx.lineWidth = 6 / Math.min(canvas.width, canvas.height);
+    for (const s of strokes.concat(current ? [current] : [])) {
+      if (s.length < 2) { ctx.beginPath(); ctx.arc(s[0][0], s[0][1], ctx.lineWidth / 2, 0, 7); ctx.fillStyle = ctx.strokeStyle; ctx.fill(); continue; }
+      ctx.beginPath(); ctx.moveTo(s[0][0], s[0][1]);
+      for (let i = 1; i < s.length; i++) ctx.lineTo(s[i][0], s[i][1]);
+      ctx.stroke();
+    }
+  }
+  function pt(e) {
+    const r = canvas.getBoundingClientRect();
+    return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))];
+  }
+  canvas.addEventListener('pointerdown', e => {
+    if (state === 'revealed' || !offer) return;
+    canvas.setPointerCapture(e.pointerId); current = [pt(e)]; setState('drawing'); redraw();
+  });
+  canvas.addEventListener('pointermove', e => { if (!current) return; current.push(pt(e)); redraw(); });
+  const finish = e => { if (!current) return; strokes.push(current); current = null; redraw(); setState('drawing'); };
+  canvas.addEventListener('pointerup', finish); canvas.addEventListener('pointercancel', finish);
+  undoBtn.addEventListener('click', () => { strokes.pop(); redraw(); setState(strokes.length || text.value.trim() ? 'drawing' : 'offering'); });
+  text.addEventListener('input', () => setState(strokes.length || text.value.trim() ? 'drawing' : 'offering'));
+  text.addEventListener('keydown', e => { if (e.key === 'Enter' && !commitBtn.disabled) commitBtn.click(); });
+  window.addEventListener('resize', resize);
+  frame.addEventListener('load', resize);
+
+  // --- flow -------------------------------------------------------------------
+  async function api(path, body) {
+    const res = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(data.message || data.error || res.statusText), { data });
+    return data;
+  }
+
+  async function nextOffer() {
+    strokes = []; current = null; text.value = ''; $('seerBody').innerHTML = '';
+    notice.hidden = false; notice.textContent = 'Looking for a cloud…'; frame.removeAttribute('src');
+    setState('offering');
+    try {
+      offer = await api(`/api/offer?camera=${encodeURIComponent(camera)}`);
+      frame.src = offer.image + '?v=' + offer.frame_id;
+      notice.hidden = true;
+      meta.textContent = `camera ${camera} · ${offer.captured_at.replace('T', ' ').replace('Z', ' UTC')}`;
+    } catch (e) {
+      offer = null;
+      notice.textContent = e.message || 'No cloud yet.';
+      meta.textContent = `camera ${camera}`;
+      setTimeout(nextOffer, 20000);
+    }
+  }
+
+  commitBtn.addEventListener('click', async () => {
+    if (!offer || commitBtn.disabled) return;
+    commitBtn.disabled = true; commitBtn.textContent = 'Asking the seer…';
+    try {
+      const r = await api('/api/commit', { sitting_id: offer.sitting_id, frame_id: offer.frame_id, freeze_id: offer.freeze_id,
+                                           text: text.value, strokes });
+      renderSeer(r.seer);
+      setState('revealed');
+    } catch (e) {
+      $('seerBody').innerHTML = `<div class="err">Could not save that: ${escape(e.message)}</div>`;
+      commitBtn.disabled = false;
+    } finally { commitBtn.textContent = "That's what I see"; }
+  });
+
+  function renderSeer(seer) {
+    const body = $('seerBody');
+    const you = `<div class="note">You said: <span class="you">${escape(text.value.trim() || '(a drawing)')}</span></div>`;
+    if (seer.status !== 'ok') { body.innerHTML = `<div class="err">The seer could not look.</div>` + you; return; }
+    if (!seer.readings.length) { body.innerHTML = `<div>Nothing. Just sky, it says.</div>` + (seer.note ? `<div class="note">${escape(seer.note)}</div>` : '') + you; return; }
+    body.innerHTML = '<ul>' + seer.readings.map(r =>
+      `<li><strong>${escape(r.thing)}</strong> <span class="where">${escape(r.where)}</span>` +
+      `<span class="bar" style="width:${Math.round(Math.max(0, Math.min(1, r.strength)) * 80)}px"></span></li>`).join('') + '</ul>' +
+      (seer.note ? `<div class="note">${escape(seer.note)}</div>` : '') + you;
+  }
+  function escape(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+  $('again').addEventListener('click', async () => {
+    if (offer) api('/api/event', { sitting_id: offer.sitting_id, kind: 'again', frame_id: offer.frame_id }).catch(() => {});
+    nextOffer();
+  });
+  $('done').addEventListener('click', () => nextOffer());
+  $('skip').addEventListener('click', async () => {
+    if (offer) api('/api/event', { sitting_id: offer.sitting_id, kind: 'skipped', frame_id: offer.frame_id }).catch(() => {});
+    nextOffer();
+  });
+
+  nextOffer();
+})();
+</script>
+</body>
+</html>
