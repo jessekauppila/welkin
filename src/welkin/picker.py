@@ -108,6 +108,19 @@ def score_recent(
     return out
 
 
+def score_latest(con: sqlite3.Connection, data_dir: Path, camera_id: str, limit: int = 6, sky_crop: float | None = None) -> list[Scored]:
+    """Score the camera's most recent ``limit`` frames regardless of age, oldest
+    first. For when the lookback window is empty but the camera has frames."""
+    rows = con.execute(
+        "SELECT captured_at FROM frames WHERE camera_id = ? ORDER BY captured_at DESC LIMIT ?", (camera_id, limit)
+    ).fetchall()
+    if not rows:
+        return []
+    oldest = datetime.fromisoformat(rows[-1]["captured_at"].replace("Z", "+00:00"))
+    newest = datetime.fromisoformat(rows[0]["captured_at"].replace("Z", "+00:00"))
+    return score_recent(con, data_dir, camera_id, oldest, newest, sky_crop)
+
+
 def freeze(con: sqlite3.Connection, camera_id: str, candidates: list[Scored]) -> Scored | None:
     """Pick the highest-scoring candidate and record the freeze. Ties go to the
     most recent frame. Returns None when there is nothing to pick."""

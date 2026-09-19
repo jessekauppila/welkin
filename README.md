@@ -78,7 +78,27 @@ its first control on the prototype's image pools; read that file before trusting
 .venv/bin/welkin-seer --control path/to/lens-cap-and-ceiling-frames
 ```
 
+**Station** (issue #5). The touch page: freeze, draw, name, commit, then see the seer.
+
+```bash
+.venv/bin/welkin-station --port 8100 --rater jesse          # with the seer (needs ANTHROPIC_API_KEY)
+.venv/bin/welkin-station --port 8100 --no-seer              # without; the reveal says the seer could not look
+```
+
+Open `http://<laptop>:8100/?camera=3` on the tablet. The station re-runs the picker when
+the current freeze is older than `--auto-pick-min` (default 10). Responses, sittings and
+events land in the same SQLite file (issue #2); the client never sends provenance and may
+not send scores. `docs/rubric.md` is what the page asks and what the words mean.
+
+**Report** (the pre-registered bar, `docs/m1-bar.md`):
+
+```bash
+.venv/bin/welkin-report --since 2026-09-20T00:00:00Z
+```
+
 ## Status
 
-- Frame ingest (#1), picker v0 (#3), seer (#4): built. Picker not validated on real frames.
-- Response store (#2), station (#5), rubric (#6), lessons (#7): open, milestone "M1: Freeze and draw".
+- Ingest (#1), picker v0 (#3), seer (#4), store (#2), station (#5), rubric + bar (#6),
+  lessons (#7): built. Milestone 1 software is complete; the picker is not validated on
+  real frames and the bar's numbers await Jesse's confirmation.
+- Next: firmware #14, the first deployment. Then two afternoons of sittings.
